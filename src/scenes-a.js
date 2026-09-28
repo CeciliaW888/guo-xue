@@ -79,7 +79,6 @@ export function coverScene() {
   const petals = particles({ count: 60, color: 0xf6c2cf, size: 0.18, box: [18, 8, 12], center: [0, 4, 0], additive: false, opacity: 0.9 });
   root.add(petals);
   s.cam = { pos: [0, 4.6, 15.5], look: [0, 3, 0] };
-  s.sky = { top: 0x8fbfcf, horizon: 0xf8ecd4, bottom: 0xeadcc0 };
   s.tick = (t) => {
     bookG.position.y = 4.7 + Math.sin(t) * 0.12;
     chars.forEach((c, i) => { c.position.y = 5.9 + Math.sin(t * 1.3 + i) * 0.12; });
@@ -198,7 +197,6 @@ export function seedsScene() {
   s.pickables = [seed, can];
   let growCur = 0.001, growTarget = 0.001, fenceT = 0.001, weedT = 0.001, rainT = 0, wind = 0, mode = 'idle', seedY = 1.2, youSpot = new THREE.Vector3(-2.4, 0, 1.2);
   s.cam = { pos: [1, 4, 11], look: [1, 1.2, 0] };
-  s.sky = { top: 0x8cc3d6, horizon: 0xf7ebd3 };
 
   s.setState = (state, vars) => {
     const care = vars.care || 0;
@@ -270,9 +268,8 @@ export function mengmuScene() {
   const s = base();
   const { root } = s;
   root.add(backdrop({ seedBase: 21, width: 170 }));
-  const g = ground({ radius: 17 });
-  g.scale.set(1, 1, 0.6);
-  root.add(g);
+  // Keep the path and the three homes clear of grass and trees.
+  root.add(ground({ radius: 20, clear: [[-10, -0.5, 4], [0, -0.5, 3.5], [10, -1, 4], [14, 1, 3], ...[-12, -6, 0, 6, 12].map((x) => [x, 1.8, 2])] }));
   const path = mesh(new THREE.BoxGeometry(26, 0.02, 1.4), mat(0xd8c49c), { shadow: false, receive: true });
   path.position.set(0, 0.01, 1.8);
   root.add(path);
@@ -399,7 +396,6 @@ export function mengmuScene() {
   };
   let cur = spots.grave, cut = false, state = 'grave';
   s.cam = { pos: [0, 6, 19], look: [0, 1, 0] };
-  s.sky = { top: 0x9cc3cf, horizon: 0xf5e8cf };
 
   s.setState = (st) => {
     state = st;
@@ -516,7 +512,6 @@ export function jadeScene() {
   s.pickables = [stone];
   let taps = 0, state = 'rough', mode = 'idle', polish = 0, hammer = 0;
   s.cam = { pos: [0, 3, 6.5], look: [0, 1.2, 0] };
-  s.sky = { top: 0x9fc4c8, horizon: 0xf4e7cc };
 
   s.setState = (st) => {
     state = st;
@@ -642,6 +637,7 @@ export function warmBedScene() {
   s.cam = { pos: [1.5, 3.2, 6.5], look: [-0.3, 0.9, -1] };
   s.sky = { top: 0x1b2440, horizon: 0x2f3a5c, bottom: 0x1b2033 };
   s.fog = { color: 0x1d2438, near: 20, far: 60 };
+  s.indoor = true;
   s.light = { sky: 0x8fa3d8, ground: 0x3a3040, hemi: 0.7, sun: 0x9fb8ff, sunIntensity: 0.9, sunPos: [6, 10, 6], exposure: 1.1 };
 
   const poses = {
@@ -780,7 +776,6 @@ export function pearsScene() {
   s.pickables = [big, small];
   let state = 'plate', eat = 1;
   s.cam = { pos: [0, 3.6, 6.2], look: [0, 0.7, 0] };
-  s.sky = { top: 0x94c4d2, horizon: 0xf7ead0 };
 
   s.setState = (st) => {
     state = st;

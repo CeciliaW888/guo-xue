@@ -5,6 +5,7 @@ import {
 } from './kit.js';
 import { damp, dampVec, pickable, setActive, animateHints, Bursts, walkTo, turnTo, faceYaw } from './fx.js';
 import { YOU_ROBE } from './scenes-a.js';
+import { LANTERNS, SCENE_LINES } from './story.js';
 
 function base() {
   const root = new THREE.Group();
@@ -38,11 +39,8 @@ export function firefliesScene() {
   const s = base();
   const { root } = s;
   root.add(backdrop({ seedBase: 51, colors: ['#3b4a63', '#2c3950', '#1f2a3d'] }));
-  const summer = ground({ radius: 7, color: 0x4f6b4a });
-  summer.position.x = -4;
-  const winter = ground({ radius: 7, color: C.snow });
-  winter.position.x = 9;
-  root.add(summer, winter);
+  // One landscape: summer grass on the left (Che Yin), snow from x = 3.5 on the right (Sun Kang).
+  root.add(ground({ radius: 15, snowFrom: 3.5, night: true, clear: [[-4.5, 0, 3.2], [9, 0, 3.4]] }));
 
   // Poor families' homes: plain wood instead of red lacquer.
   const hut = house({ w: 2.6, d: 2, h: 1.5, roof: 0x4a4038, wall: 0xcbb994, pillar: 0x6b5040 });
@@ -88,7 +86,7 @@ export function firefliesScene() {
   const flies = [];
   for (let i = 0; i < 12; i++) {
     const f = new THREE.Group();
-    const g = glowSprite(0xd8ff7a, 0.5, 0.95);
+    const g = glowSprite(0xd8ff7a, 0.22, 0.9);
     const hit = hitBall(0.45);
     f.add(g, hit);
     f.userData.seed = Math.random() * 100;
@@ -96,7 +94,7 @@ export function firefliesScene() {
     f.userData.caught = false;
     f.userData.glow = g;
     f.position.copy(f.userData.home);
-    pickable(f, 'fly', { hintY: 0, hintScale: 1.2, color: 0xffffaa });
+    pickable(f, 'fly', { hintY: 0, hintScale: 0.35, color: 0xffffaa });
     root.add(f);
     flies.push(f);
   }
@@ -114,7 +112,7 @@ export function firefliesScene() {
   bk2.rotation.x = -0.6;
   sunkang.add(bk2);
   const drifts = [[7.2, 1.6], [10.8, 1.8], [9, 2.8]].map(([x, z]) => {
-    const d = mesh(new THREE.SphereGeometry(0.7, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshToonMaterial({ color: 0xffffff, emissive: 0xbfd8ff, emissiveIntensity: 0 }));
+    const d = mesh(new THREE.SphereGeometry(0.7, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, emissive: 0xbfd8ff, emissiveIntensity: 0 }));
     d.scale.y = 0.4;
     d.position.set(x, 0, z);
     d.add(hitBall(0.9));
@@ -132,7 +130,7 @@ export function firefliesScene() {
   let state = 'dark', caught = 0, lit = 0, snowLit = 0;
   s.cam = { pos: [-4, 3.2, 7.5], look: [-4.2, 0.8, 0] };
   s.sky = { top: 0x0f1830, horizon: 0x2c3a5a, bottom: 0x141a2a };
-  s.fog = { color: 0x1c2640, near: 18, far: 55 };
+  s.fog = { color: 0x1c2640, near: 25, far: 150 };
   s.light = { sky: 0x7f93c8, ground: 0x2a2a38, hemi: 0.75, sun: 0xaec4ff, sunIntensity: 0.8, sunPos: [0, 12, -8], exposure: 1.15 };
 
   s.setState = (st) => {
@@ -152,7 +150,7 @@ export function firefliesScene() {
       setActive(obj, false);
       caught++;
       s.fx.sparkle(obj.position.clone(), { color: 0xd8ff7a, n: 8, size: 0.3 });
-      if (caught === 4) return [{ say: { who: 'cheyin', zh: '越来越亮了！再多捉几只！', en: "It's getting brighter! Just a few more!" } }];
+      if (caught === 4) return [{ say: SCENE_LINES.brighter }];
       if (caught >= 8) {
         flies.forEach((f) => setActive(f, false));
         return [{ ev: 'done' }];
@@ -208,21 +206,12 @@ export function firefliesScene() {
 }
 
 // ---------------------------------------------------------------- 弟子规 总叙: seven lanterns
-const LANTERNS = [
-  ['入则孝', '在家要孝顺父母。', 'At home, love and respect your parents.'],
-  ['出则弟', '出门要尊敬兄长和长辈。', 'Outside, respect older siblings and elders.'],
-  ['谨', '做事要小心谨慎。', 'Be careful in everything you do.'],
-  ['信', '说话要诚实守信。', 'Be honest and keep your word.'],
-  ['泛爱众', '要关爱所有的人。', 'Care for everyone.'],
-  ['亲仁', '要亲近有仁德的人。', 'Stay close to kind and wise people.'],
-  ['余力学文', '做好这些，还有余力就读书学习。', 'With strength to spare, read and learn.'],
-];
 
 export function lanternsScene() {
   const s = base();
   const { root } = s;
   root.add(backdrop({ seedBase: 61, colors: ['#6a5a78', '#4d4560', '#35324a'] }));
-  root.add(ground({ radius: 10, color: 0x7d8a6a }));
+  root.add(ground({ radius: 10, night: true, clear: [[0, -1, 6]] }));
   const bigScroll = scroll({ width: 5, height: 1.6, text: '弟子规' });
   bigScroll.position.set(0, 1.6, -3.5);
   root.add(bigScroll);
@@ -243,7 +232,7 @@ export function lanternsScene() {
   root.add(confucius, you);
   [[-6.5, -2, 'pine'], [6.5, -2.4, 'blossom']].forEach(([x, z, k]) => root.add(at(tree({ kind: k, h: 2.8 }), x, 0, z)));
 
-  const lanterns = LANTERNS.map(([label], i) => {
+  const lanterns = LANTERNS.map(({ label }, i) => {
     const u = (i + 0.5) / LANTERNS.length;
     const p = curve.getPoint(u);
     const l = lantern({ label, lit: true, scale: 0.78 });
@@ -266,7 +255,7 @@ export function lanternsScene() {
   let state = 'dark', count = 0;
   s.cam = { pos: [0, 2.8, 9.5], look: [0, 2.4, -1] };
   s.sky = { top: 0x1f2346, horizon: 0x7a5a7a, bottom: 0x2a2438 };
-  s.fog = { color: 0x3a3450, near: 20, far: 60 };
+  s.fog = { color: 0x3a3450, near: 25, far: 160 };
   s.light = { sky: 0xb0a0d0, ground: 0x40384a, hemi: 0.9, sun: 0xffc9a0, sunIntensity: 1, sunPos: [-6, 8, 8], exposure: 1.1 };
 
   s.setState = (st) => {
@@ -281,8 +270,7 @@ export function lanternsScene() {
     setActive(obj, false);
     count++;
     s.fx.sparkle(obj.position.clone(), { color: 0xffc070, n: 16, size: 0.35 });
-    const [label, zh, en] = LANTERNS[obj.userData.idx];
-    const out = [{ say: { who: 'guide', zh: `${label}：${zh}`, en: `${label}: ${en}` } }];
+    const out = [{ say: { who: 'guide', ...LANTERNS[obj.userData.idx] } }];
     if (count === LANTERNS.length) out.push({ ev: 'done', delay: 1800 });
     return out;
   };
@@ -357,7 +345,6 @@ export function callHomeScene() {
   let state = 'blocks', fall = false;
   const spots = { blocks: [-2.2, 1.4], wait: [-2.2, 1.4], come: [1.9, 0.5], listen: [1.9, 0.5], lesson: [1.9, 0.5] };
   s.cam = { pos: [-0.5, 3.4, 8.5], look: [-0.5, 1, 0] };
-  s.sky = { top: 0x94c6d6, horizon: 0xf8e9cc };
   s.light = { sunPos: [-8, 10, 8], sun: 0xffe0b0 };
 
   s.setState = (st) => {
@@ -447,7 +434,7 @@ export function promiseScene() {
   const steam = particles({ count: 30, color: 0xffffff, size: 0.25, box: [0.3, 1, 0.3], center: [0.2, 1.4, 0.4], additive: false, opacity: 0 });
   root.add(steam);
   const xin = textPlane('信', 1.4, { color: '#f2c14e', size: 240 });
-  xin.position.set(0.2, 2.75, -0.6);
+  xin.position.set(0.2, 3.7, 0.9);
   xin.scale.setScalar(0.001);
   const xinGlow = glowSprite(0xffd27a, 3.5, 0);
   xinGlow.position.copy(xin.position);
@@ -472,12 +459,11 @@ export function promiseScene() {
   wife.position.set(-3.6, 0, 1.8);
   son.position.set(-2.6, 0, 1.2);
   s.cam = { pos: [0, 3.6, 9], look: [0, 1, 0] };
-  s.sky = { top: 0x9ac3cf, horizon: 0xf6e8cc };
 
   s.setState = (st) => {
     state = st;
     pose = poses[st] || pose;
-    s.cam = st === 'sad' ? { pos: [-1.8, 2.6, 6.2], look: [-2, 1.4, 1] } : st === 'feast' ? { pos: [0.3, 2.8, 6.6], look: [0.2, 1.5, 0] } : st === 'lesson' ? { pos: [0.2, 3.4, 9.5], look: [0.2, 1.7, 0] } : { pos: [0, 3.6, 9], look: [0, 1, 0] };
+    s.cam = st === 'sad' ? { pos: [-1.8, 2.6, 6.2], look: [-2, 1.4, 1] } : st === 'feast' ? { pos: [0.3, 3, 7.4], look: [0.2, 2, 0] } : st === 'lesson' ? { pos: [0.2, 3.4, 9.5], look: [0.2, 1.7, 0] } : { pos: [0, 3.6, 9], look: [0, 1, 0] };
   };
 
   s.tick = (t, dt) => {
@@ -513,7 +499,7 @@ export function promiseScene() {
     sp.needsUpdate = true;
     const xs = damp(xin.scale.x, feasting ? 1 : 0.001, 3, dt);
     xin.scale.setScalar(xs);
-    xin.position.y = 2.75 + Math.sin(t * 1.5) * 0.1;
+    xin.position.y = 3.7 + Math.sin(t * 1.5) * 0.1;
     xinGlow.position.y = xin.position.y;
     xin.rotation.y = Math.sin(t * 0.8) * 0.3;
     xinGlow.material.opacity = xs * (0.55 + Math.sin(t * 2) * 0.1);
@@ -614,13 +600,13 @@ export function threeArrivalsScene() {
   const lip2 = mesh(new THREE.TorusGeometry(0.2, 0.05, 10, 24, Math.PI), mat(0xd9534f));
   lip2.scale.y = 0.35;
   mouth.add(lip, lip2);
-  const heart = mesh(heartShape(), new THREE.MeshToonMaterial({ color: 0xe0484f, emissive: 0x801010, emissiveIntensity: 0.2 }));
+  const heart = mesh(heartShape(), new THREE.MeshStandardMaterial({ color: 0xe0484f, roughness: 0.4, emissive: 0x801010, emissiveIntensity: 0.2 }));
   heart.geometry.center();
   const icons = [
-    [eye, 'eye', '眼到：眼睛看着书，一个字一个字看清楚。', 'Eyes arrive: look at the book and see each character clearly.', [-2.3, 1.8, 1]],
-    [mouth, 'mouth', '口到：大声读出来，读清楚了才记得牢。', 'Mouth arrives: read aloud, clearly, so it stays in your memory.', [2.3, 1.8, 1]],
-    [heart, 'heart', '心到：心里想着书上的意思。这一个最重要！', 'Heart arrives: think about what the words mean. This one matters most!', [0, 2.55, 1.2]],
-  ].map(([obj, name, zh, en, pos]) => {
+    [eye, 'eye', [-2.3, 1.8, 1]],
+    [mouth, 'mouth', [2.3, 1.8, 1]],
+    [heart, 'heart', [0, 2.55, 1.2]],
+  ].map(([obj, name, pos]) => {
     const g = new THREE.Group();
     g.add(obj);
     g.add(hitBall(0.5));
@@ -630,7 +616,7 @@ export function threeArrivalsScene() {
     label.position.y = -0.52;
     g.add(label);
     g.position.fromArray(pos);
-    g.userData = { ...g.userData, name, zh, en, home: new THREE.Vector3(...pos), lit: false, glow };
+    g.userData = { ...g.userData, name, home: new THREE.Vector3(...pos), lit: false, glow };
     pickable(g, name, { hintY: 0.6 });
     root.add(g);
     return g;
@@ -641,6 +627,7 @@ export function threeArrivalsScene() {
   let state = 'distracted', count = 0;
   s.cam = { pos: [0, 2.6, 6.2], look: [0, 1.6, 0] };
   s.sky = { top: 0xe8d9bc, horizon: 0xf3e6cc };
+  s.indoor = true;
   s.light = { hemi: 1.2, sunIntensity: 1.6, sunPos: [4, 9, 8] };
 
   s.setState = (st) => {
@@ -655,7 +642,7 @@ export function threeArrivalsScene() {
     setActive(obj, false);
     count++;
     s.fx.sparkle(obj.position.clone(), { color: 0xfff0a0, n: 16, size: 0.35 });
-    const out = [{ say: { who: 'guide', zh: obj.userData.zh, en: obj.userData.en } }];
+    const out = [{ say: SCENE_LINES[obj.userData.name] }];
     if (count === 3) out.push({ ev: 'done', delay: 2200 });
     return out;
   };
@@ -725,7 +712,6 @@ export function finaleScene() {
   const fireworks = [];
 
   s.cam = { pos: [0, 3.6, 11], look: [0, 2, 0] };
-  s.sky = { top: 0x86b9d0, horizon: 0xfbe9cc };
 
   s.setState = (st, vars) => {
     const n = Math.min(vars.good ?? 0, 40);

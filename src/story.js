@@ -483,13 +483,37 @@ export const STORIES = {
       state: 'finale',
       say: [
         L('guide', '小书童，我们的旅程就要结束了。你还记得第一章种下的那颗种子吗？', 'Young scholar, our journey is nearly over. Do you remember the seed you planted in the first chapter?'),
-        L('guide', '一路上，你做了 {good} 个好选择。每一个好选择，都让你的小树多开一朵花！', 'Along the way you made {good} good choices. Each good choice made your tree bloom one more flower!'),
+        L('guide', '一路上，你的每一个好选择，都让你的小树多开了一朵花！数一数，开了几朵？', 'Along the way, every good choice made your tree bloom one more flower. Can you count them?'),
         L('guide', '《三字经》最后四句，送给你。', 'The last four lines of the Three Character Classic are for you.'),
       ],
       next: 'lesson',
     },
     lesson: { state: 'lesson', lesson: true, finale: true },
   },
+};
+
+// Lines spoken from inside scenes (taps), kept here so the voice build sees every spoken line.
+export const LANTERNS = [
+  { label: '入则孝', zh: '入则孝：在家要孝顺父母。', en: 'Love at home: respect and care for your parents.' },
+  { label: '出则弟', zh: '出则弟：出门要尊敬兄长和长辈。', en: 'Respect outside: honour older siblings and elders.' },
+  { label: '谨', zh: '谨：做事要小心谨慎。', en: 'Care: be careful in everything you do.' },
+  { label: '信', zh: '信：说话要诚实守信。', en: 'Trust: be honest and keep your word.' },
+  { label: '泛爱众', zh: '泛爱众：要关爱所有的人。', en: 'Love for all: care for everyone.' },
+  { label: '亲仁', zh: '亲仁：要亲近有仁德的人。', en: 'Kind friends: stay close to kind and wise people.' },
+  { label: '余力学文', zh: '余力学文：做好这些，还有余力就读书学习。', en: 'Learning: with strength to spare, read and learn.' },
+];
+
+export const SCENE_LINES = {
+  brighter: L('cheyin', '越来越亮了！再多捉几只！', "It's getting brighter! Just a few more!"),
+  eye: L('guide', '眼到：眼睛看着书，一个字一个字看清楚。', 'Eyes arrive: look at the book and see each character clearly.'),
+  mouth: L('guide', '口到：大声读出来，读清楚了才记得牢。', 'Mouth arrives: read aloud, clearly, so it stays in your memory.'),
+  heart: L('guide', '心到：心里想着书上的意思。这一个最重要！', 'Heart arrives: think about what the words mean. This one matters most!'),
+};
+
+// Short spoken UI lines.
+export const UI_LINES = {
+  ending: { who: 'guide', zh: '你就是真正的国学小书童！', en: 'You are a true young scholar!' },
+  voiceOn: { who: 'guide', zh: '朗读已打开', en: 'Narration on' },
 };
 
 // The path broadcast mode follows: always the choice that matches the source story.

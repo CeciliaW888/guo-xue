@@ -34,6 +34,9 @@ export class Sound {
       this.master = this.ctx.createGain();
       this.master.gain.value = 0.9;
       this.master.connect(this.ctx.destination);
+      this.voiceBus = this.ctx.createGain();
+      this.voiceBus.gain.value = 1.15;
+      this.voiceBus.connect(this.master);
       this.musicBus = this.ctx.createGain();
       this.musicBus.gain.value = 0;
       this.musicBus.connect(this.master);

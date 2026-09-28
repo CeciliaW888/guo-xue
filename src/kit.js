@@ -1,6 +1,7 @@
 // Shared low-poly "paper storybook" building blocks for every scene.
 import * as THREE from 'three';
 import { ASSETS } from './assets.js';
+import { terrain, scatter, mountains, clouds, instancedFence, sharedMaterial } from './env.js';
 
 export const C = {
   paper: 0xf3e9d6,
@@ -20,34 +21,22 @@ export const C = {
   skin: 0xf6d2b2,
   hair: 0x1f1b1a,
   earth: 0xcdb58c,
-  grass: 0x9dbb7a,
+  grass: 0x86b55e,
   snow: 0xf7f7f4,
   pear: 0xe3cf5a,
   sky: 0xa9cfd8,
 };
 
 // ---------- materials ----------
-let gradientMap;
-function toonGradient() {
-  if (gradientMap) return gradientMap;
-  const data = new Uint8Array([90, 160, 215, 255]);
-  gradientMap = new THREE.DataTexture(data, data.length, 1, THREE.RedFormat);
-  gradientMap.minFilter = gradientMap.magFilter = THREE.NearestFilter;
-  gradientMap.needsUpdate = true;
-  return gradientMap;
-}
-
+// Physically based (not toon) shading so light, shadow and haze read as a real place.
 const matCache = new Map();
 export function mat(color, opts = {}) {
   const key = color + JSON.stringify(opts);
   if (!opts.unique && matCache.has(key)) return matCache.get(key);
-  const m = new THREE.MeshToonMaterial({ color, gradientMap: toonGradient(), ...stripOpts(opts) });
-  if (!opts.unique) matCache.set(key, m);
+  const { unique, ...rest } = opts;
+  const m = new THREE.MeshStandardMaterial({ color, roughness: 0.82, metalness: 0, ...rest });
+  if (!unique) matCache.set(key, m);
   return m;
-}
-function stripOpts(o) {
-  const { unique, ...rest } = o;
-  return rest;
 }
 export function glowMat(color, intensity = 1) {
   return new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(intensity), toneMapped: false });
@@ -141,74 +130,42 @@ function mulberry(seed) {
 }
 export const rng = mulberry(7);
 
-// Ink-wash mountain ridge painted onto a canvas, used as a far backdrop layer.
-export function inkMountains({ color = '#5b6b73', seed = 1, peaks = 6, height = 0.7 } = {}) {
-  const r = mulberry(seed);
-  const W = 1024, H = 320;
-  const cv = document.createElement('canvas');
-  cv.width = W; cv.height = H;
-  const g = cv.getContext('2d');
-  const centers = Array.from({ length: peaks }, (_, i) => [((i + 0.2 + r() * 0.6) / peaks) * W, H * (1 - height * (0.5 + r() * 0.5)), 70 + r() * 110]);
-  const ridge = (x) => {
-    let y = H * 0.97;
-    for (const [cx, cy, wd] of centers) {
-      const d = (x - cx) / wd;
-      y = Math.min(y, cy + (H - cy) * (1 - Math.exp(-d * d * 0.9)));
-    }
-    return y + Math.sin(x * 0.05 + seed) * 2 + Math.sin(x * 0.13 + seed * 3) * 1.2;
-  };
-  // Mist: solid near the ridge, fading into paper toward the valley.
-  const grd = g.createLinearGradient(0, H * (1 - height), 0, H);
-  grd.addColorStop(0, color + 'f0');
-  grd.addColorStop(0.55, color + '90');
-  grd.addColorStop(1, color + '00');
-  g.fillStyle = grd;
-  g.beginPath();
-  g.moveTo(0, H);
-  for (let x = 0; x <= W; x += 4) g.lineTo(x, ridge(x));
-  g.lineTo(W, H);
-  g.closePath();
-  g.fill();
-  // A few soft vertical brush strokes for texture.
-  g.globalAlpha = 0.12;
-  g.strokeStyle = color;
-  for (let k = 0; k < 40; k++) {
-    const x = r() * W, y0 = ridge(x);
-    g.lineWidth = 1 + r() * 3;
-    g.beginPath();
-    g.moveTo(x, y0 + 2);
-    g.lineTo(x + (r() - 0.5) * 10, y0 + 20 + r() * 60);
-    g.stroke();
-  }
-  const tex = new THREE.CanvasTexture(cv);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
-}
-
-export function backdrop({ layers = 3, colors = ['#b9c6c6', '#98abae', '#7b8f94'], width = 180, z = -50, y = -3, seedBase = 3, height = 0.8 } = {}) {
-  const grp = new THREE.Group();
-  for (let i = 0; i < layers; i++) {
-    const tex = inkMountains({ color: colors[i % colors.length], seed: seedBase + i * 11, height: height - i * 0.15 });
-    const w = width - i * 30;
-    const h = w * 0.2;
-    const p = new THREE.Mesh(
-      new THREE.PlaneGeometry(w, h),
-      new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, fog: false }),
-    );
-    p.position.set((i - 1) * 8, y + h * 0.5, z + i * 10);
-    p.renderOrder = -10 + i;
-    grp.add(p);
-  }
-  return grp;
-}
-
-export function ground({ radius = 14, color = C.grass, y = 0, thickness = 1.2 } = {}) {
+// Distant 3D mountains and instanced clouds. Dark `colors` (night scenes) dim both.
+export function backdrop({ colors = ['#5f8a7e'], seedBase = 3 } = {}) {
   const g = new THREE.Group();
-  const top = mesh(new THREE.CylinderGeometry(radius, radius * 0.92, thickness, 64), mat(color), { shadow: false, receive: true });
-  top.position.y = y - thickness / 2;
-  const under = mesh(new THREE.CylinderGeometry(radius * 0.92, radius * 0.4, thickness * 2.5, 48), mat(C.earth), { shadow: false });
-  under.position.y = y - thickness - thickness * 1.25;
-  g.add(top, under);
+  const c = new THREE.Color(colors[0]);
+  const dark = c.getHSL({}).l < 0.3;
+  g.add(mountains({ seed: seedBase, color: dark ? 0x2a3444 : c.getHex(), radius: 150 }));
+  g.add(mountains({ seed: seedBase + 7, color: dark ? 0x1f2735 : new THREE.Color(c).offsetHSL(0, 0.02, -0.08).getHex(), radius: 200, count: 26 }));
+  const cl = clouds({ seed: seedBase, color: dark ? 0x6a7088 : 0xffffff, count: dark ? 8 : 14 });
+  g.add(cl);
+  g.userData.tick = (t) => cl.userData.drift(t);
+  return g;
+}
+
+// Continuous landscape: flat where the scene happens, rolling hills and instanced
+// vegetation beyond. A non-grass `color` becomes a courtyard/earth patch in the middle.
+export function ground({ radius = 14, color = C.grass, clear, night = false, snowFrom = null, seed = 1, grass, trees, flowers } = {}) {
+  const g = new THREE.Group();
+  const t = terrain({ flat: radius, seed, snowFrom, color: night ? 0x3f5a3c : C.grass });
+  g.add(t);
+  const height = t.userData.height;
+  if (color !== C.grass) {
+    const shape = new THREE.Shape();
+    const r = radius * 0.72;
+    for (let i = 0; i <= 40; i++) {
+      const a = (i / 40) * Math.PI * 2;
+      const rr = r * (0.9 + 0.1 * Math.sin(a * 5 + seed) * Math.cos(a * 3));
+      i ? shape.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : shape.moveTo(Math.cos(a) * rr, Math.sin(a) * rr);
+    }
+    const patch = mesh(new THREE.ShapeGeometry(shape, 8), mat(color, { roughness: 1 }), { shadow: false, receive: true });
+    patch.rotation.x = -Math.PI / 2;
+    patch.position.y = 0.01;
+    g.add(patch);
+  }
+  const clearZones = clear ?? [[0, 0, color !== C.grass ? radius * 0.75 : radius * 0.45]];
+  g.add(scatter(height, { flat: radius, seed: seed + 3, clear: clearZones, snowFrom, night, grass, trees, flowers }));
+  g.userData.height = height;
   return g;
 }
 
@@ -249,7 +206,7 @@ export function tree({ kind = 'round', h = 2.4, color } = {}) {
   if (kind === 'pine') {
     const c = color ?? C.pine;
     for (let i = 0; i < 3; i++) {
-      const cone = mesh(new THREE.ConeGeometry(h * (0.42 - i * 0.1), h * 0.42, 8), mat(c));
+      const cone = mesh(new THREE.ConeGeometry(h * (0.42 - i * 0.1), h * 0.42, 8), mat(c, { flatShading: true }));
       cone.position.y = h * (0.5 + i * 0.2);
       g.add(cone);
     }
@@ -257,7 +214,7 @@ export function tree({ kind = 'round', h = 2.4, color } = {}) {
     const c = color ?? (kind === 'blossom' ? C.blossom : C.leaf);
     const blobs = [[0, 0.78, 0, 0.42], [0.28, 0.66, 0.1, 0.3], [-0.26, 0.68, -0.08, 0.32], [0.05, 0.95, -0.1, 0.28]];
     for (const [x, y, z, s] of blobs) {
-      const b = mesh(new THREE.IcosahedronGeometry(s * h, 0), mat(c));
+      const b = mesh(new THREE.IcosahedronGeometry(s * h, 1), mat(c, { flatShading: true }));
       b.position.set(x * h, y * h, z * h);
       g.add(b);
     }
@@ -386,19 +343,7 @@ function proceduralHouse({ w = 3, d = 2.2, h = 1.6, wall = C.wall, roof = C.roof
 }
 
 export function fence(length = 4, color = C.wood) {
-  const g = new THREE.Group();
-  const n = Math.round(length / 0.4);
-  for (let i = 0; i <= n; i++) {
-    const p = mesh(new THREE.BoxGeometry(0.08, 0.6, 0.08), mat(color));
-    p.position.set(-length / 2 + i * (length / n), 0.3, 0);
-    g.add(p);
-  }
-  for (const y of [0.2, 0.45]) {
-    const rail = mesh(new THREE.BoxGeometry(length, 0.06, 0.05), mat(color));
-    rail.position.y = y;
-    g.add(rail);
-  }
-  return g;
+  return instancedFence([[-length / 2, 0, 0], [length / 2, 0, 0]], { color });
 }
 
 export function table(w = 1.6, d = 0.9, h = 0.55, color = C.wood) {
@@ -581,7 +526,7 @@ export function animateFigure(f, t, mode = 'idle') {
 // ---------- props ----------
 export function lantern({ color = C.red, label = '', lit = true, scale = 1 } = {}) {
   const g = new THREE.Group();
-  const bodyMat = lit ? new THREE.MeshToonMaterial({ color, gradientMap: toonGradient(), emissive: color, emissiveIntensity: 0.55 }) : mat(color);
+  const bodyMat = lit ? new THREE.MeshStandardMaterial({ color, roughness: 0.6, emissive: color, emissiveIntensity: 0.55 }) : mat(color);
   const b = mesh(new THREE.SphereGeometry(0.5, 20, 14), bodyMat);
   b.scale.set(1, 0.85, 1);
   g.add(b);
@@ -865,7 +810,7 @@ export function disposeTree(obj) {
     if (o.material) {
       const ms = Array.isArray(o.material) ? o.material : [o.material];
       for (const m of ms) {
-        if ([...matCache.values()].includes(m)) continue;
+        if ([...matCache.values()].includes(m) || sharedMaterial(m)) continue;
         if (m.map) m.map.dispose();
         m.dispose();
       }

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { World } from './world.js';
 import { BOOKS, CHAPTERS } from './data.js';
-import { STORIES, NAMES, canonicalChoice } from './story.js';
+import { STORIES, NAMES, UI_LINES, canonicalChoice } from './story.js';
 import { coverScene, seedsScene, mengmuScene, jadeScene, warmBedScene, pearsScene } from './scenes-a.js';
 import { firefliesScene, lanternsScene, callHomeScene, promiseScene, threeArrivalsScene, finaleScene } from './scenes-b.js';
 import { Narrator } from './narrator.js';
@@ -38,8 +38,8 @@ const app = {
 
 applyLang();
 const world = new World($('stage'));
-const narrator = new Narrator();
 const sound = new Sound();
+const narrator = new Narrator(sound);
 sound.musicOn = app.music;
 narrator.onActivity = (speaking) => sound.duck(speaking);
 const NIGHT_SCENES = new Set(['warmbed', 'fireflies', 'lanterns']);
@@ -48,7 +48,8 @@ const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platfo
 // Audio can only start from a user gesture; every tap re-arms it (cheap after the first).
 function unlockAudio() {
   sound.unlock();
-  if (!narrator.unlocked && app.voice) narrator.unlock();
+  // Browser speech needs its own tap-time unlock; recorded clips only need the AudioContext.
+  if (!narrator.clips && !narrator.unlocked && app.voice) narrator.unlock();
 }
 window.addEventListener('pointerdown', () => sound.unlock(), { passive: true });
 
@@ -131,6 +132,8 @@ function goNode(id) {
   app.node = node;
   app.lineIdx = 0;
   world.active.setState?.(node.state, app.vars);
+  const vlang = app.lang === 'en' ? 'en' : 'zh';
+  narrator.prefetch((node.say || []).map((l) => [vlang, l.who, vlang === 'en' ? l.en : l.zh]));
   if (node.lesson) { showLesson(tok); return; }
   $('lesson').classList.add('hidden');
   $('dialog').classList.remove('hidden');
@@ -158,6 +161,7 @@ function showLine(tok) {
 // Types out one line of dialogue and narrates it. `done` fires when both finish.
 function renderSay(line, tok, done) {
   const who = NAMES[line.who] || NAMES.narrator;
+  world.cue();
   const sp = $('speaker');
   sp.textContent = pick(who);
   sp.dataset.who = line.who;
@@ -355,14 +359,14 @@ async function readClassic(tok) {
     if (tok !== app.token) return;
     phrases[i].classList.add('on', 'reading');
     world.setBeat(i + 1);
-    if (app.voice) await narrator.say(ch.lines[i][0], 'zh', { rate: 0.7, pause: 250 });
+    if (app.voice) await narrator.say(ch.lines[i][0], 'zh', { who: 'classic', rate: 0.7, pause: 250 });
     else await new Promise((r) => setTimeout(r, 900));
     phrases[i].classList.remove('reading');
   }
   if (tok !== app.token) return;
   if (app.voice) {
-    if (app.lang !== 'en') await narrator.say(ch.meaning.zh, 'zh');
-    if (tok === app.token && app.lang === 'en') await narrator.say(ch.meaning.en, 'en');
+    if (app.lang !== 'en') await narrator.say(ch.meaning.zh, 'zh', { who: 'narrator' });
+    if (tok === app.token && app.lang === 'en') await narrator.say(ch.meaning.en, 'en', { who: 'narrator' });
   }
 }
 
@@ -381,7 +385,7 @@ function showEnding() {
     zh: `你读完了《三字经》和《弟子规》里的 ${CHAPTERS.length} 个故事，一路上做了 ${n} 个好选择。你就是真正的国学小书童！把今天学到的一句话，讲给家人听吧。`,
     en: `You finished ${CHAPTERS.length} stories from the Three Character Classic and Di Zi Gui, making ${n} good choices along the way. You are a true young scholar! Share one line you learned today with your family.`,
   });
-  if (app.voice) narrator.say(app.lang === 'en' ? 'You are a true young scholar!' : '你就是真正的国学小书童！', app.lang === 'en' ? 'en' : 'zh');
+  if (app.voice) narrator.say(pick(UI_LINES.ending), app.lang === 'en' ? 'en' : 'zh', { who: 'guide' });
 }
 
 // ---------------------------------------------------------------- chapter list
@@ -451,7 +455,11 @@ $('btn-lang').addEventListener('click', () => {
 });
 $('btn-voice').addEventListener('click', () => {
   app.voice = !app.voice;
-  if (app.voice) narrator.unlock(app.lang === 'en' ? 'Narration on' : '朗读已打开');
+  if (app.voice) {
+    sound.unlock();
+    if (narrator.clips) narrator.say(pick(UI_LINES.voiceOn), app.lang === 'en' ? 'en' : 'zh', { who: 'guide' });
+    else narrator.unlock(pick(UI_LINES.voiceOn));
+  }
   store.set('voice', app.voice);
   $('btn-voice').setAttribute('aria-pressed', String(app.voice));
   if (!app.voice) narrator.stop();
