@@ -36,13 +36,21 @@ export class Narrator {
     this.synth.addEventListener?.('voiceschanged', load);
   }
 
-  // Must run inside a user gesture on iOS/Safari so later speech is allowed.
-  unlock() {
+  // Must run inside a user gesture: iOS only allows speech after an utterance that
+  // started from a tap, and it ignores silent or empty utterances. So say something real.
+  unlock(text = '国学小书童') {
     if (!this.synth) return;
-    const u = new SpeechSynthesisUtterance(' ');
-    u.volume = 0;
+    this.synth.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'zh-CN';
+    if (this.voices.zh) u.voice = this.voices.zh;
+    u.rate = 0.9;
     this.synth.speak(u);
+    this.unlocked = true;
   }
+
+  get available() { return !!this.synth; }
+  get hasZh() { return !!this.voices.zh; }
 
   stop() {
     this.gen++;
@@ -54,7 +62,9 @@ export class Narrator {
     const gen = ++this.gen;
     const estimate = 800 + [...text].length * (lang === 'zh' ? 260 : 75) / (rate ?? 0.9);
     if (!this.synth || !text.trim()) return wait(Math.min(estimate, 4000));
-    this.synth.cancel();
+    // Cancelling an idle synth right before speak() makes iOS drop the next utterance.
+    const busy = this.synth.speaking || this.synth.pending;
+    if (busy) this.synth.cancel();
     return new Promise((resolve) => {
       let finished = false;
       const finish = () => {
@@ -68,11 +78,13 @@ export class Narrator {
       if (this.voices[lang]) u.voice = this.voices[lang];
       u.rate = rate ?? (lang === 'zh' ? 0.88 : 0.95);
       u.pitch = PITCH[who] ?? 1;
-      u.onend = finish;
-      u.onerror = finish;
+      u.onstart = () => this.onActivity?.(true);
+      u.onend = () => { this.onActivity?.(false); finish(); };
+      u.onerror = () => { this.onActivity?.(false); finish(); };
       const guard = setTimeout(finish, estimate * 1.6 + 1500);
       // Chrome occasionally drops speak() right after cancel(); a tick of delay avoids it.
-      setTimeout(() => { if (gen === this.gen) this.synth.speak(u); else finish(); }, 60);
+      const go = () => { if (gen === this.gen) this.synth.speak(u); else finish(); };
+      if (busy) setTimeout(go, 60); else go();
     });
   }
 }

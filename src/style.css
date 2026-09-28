@@ -198,3 +198,27 @@ body[data-lang="en"] .chip .title,
 body[data-lang="en"] .ending-card .lesson-title,
 body[data-lang="en"] .speaker { font-family: var(--serif); font-weight: 600; font-size: 1.05rem; }
 body[data-lang="en"] .ending-card .lesson-title { font-size: 1.8rem; }
+
+/* music toggle: slash shows when off */
+#btn-music .slash { opacity: 0; }
+#btn-music[aria-pressed="false"] .slash { opacity: 1; }
+#btn-music[aria-pressed="false"] path:not(.slash), #btn-music[aria-pressed="false"] circle { opacity: 0.35; }
+#btn-music svg path:first-child { fill: none; stroke: currentColor; stroke-width: 2; }
+
+.ios-tip { margin: 0.6rem 0 0; font-size: 0.8rem; color: var(--ink-soft); }
+.ios-tip .en { display: block; }
+body[data-lang="zh"] .ios-tip .en, body[data-lang="en"] .ios-tip .zh { display: none; }
+.tap-btn { margin: 0.7rem 0 0 0.5rem; }
+
+/* No-WebGL fallback: a painted ink-wash backdrop instead of the 3D scene */
+body.no-3d { background:
+  radial-gradient(ellipse 60% 30% at 70% 38%, rgba(255, 236, 190, 0.9), transparent 70%),
+  linear-gradient(180deg, #a9cfd8 0%, #f6ead2 45%, #cdd9b0 70%, #9dbb7a 100%); }
+body.no-3d #stage { display: none; }
+.no3d {
+  position: fixed; top: calc(max(12px, env(safe-area-inset-top)) + 54px); left: 50%; transform: translateX(-50%);
+  width: min(560px, calc(100% - 32px)); background: #fff4d8; border: 1px dashed var(--gold); border-radius: 12px;
+  padding: 0.5rem 0.8rem; font-size: 0.85rem; line-height: 1.5; box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+}
+.no3d .en { display: block; color: var(--ink-soft); }
+body[data-lang="zh"] .no3d .en, body[data-lang="en"] .no3d .zh { display: none; }

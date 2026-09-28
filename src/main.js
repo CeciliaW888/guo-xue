@@ -6,6 +6,7 @@ import { coverScene, seedsScene, mengmuScene, jadeScene, warmBedScene, pearsScen
 import { firefliesScene, lanternsScene, callHomeScene, promiseScene, threeArrivalsScene, finaleScene } from './scenes-b.js';
 import { Narrator } from './narrator.js';
 import { loadAssets } from './assets.js';
+import { Sound } from './sound.js';
 
 const SCENES = {
   cover: coverScene, seeds: seedsScene, mengmu: mengmuScene, jade: jadeScene, warmbed: warmBedScene, pears: pearsScene,
@@ -22,6 +23,7 @@ const store = {
 const app = {
   lang: store.get('lang', 'both'),
   voice: store.get('voice', true),
+  music: store.get('music', true),
   auto: false,
   chapterIdx: -1,
   nodeId: null,
@@ -34,8 +36,21 @@ const app = {
   token: 0,
 };
 
+applyLang();
 const world = new World($('stage'));
 const narrator = new Narrator();
+const sound = new Sound();
+sound.musicOn = app.music;
+narrator.onActivity = (speaking) => sound.duck(speaking);
+const NIGHT_SCENES = new Set(['warmbed', 'fireflies', 'lanterns']);
+const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+// Audio can only start from a user gesture; every tap re-arms it (cheap after the first).
+function unlockAudio() {
+  sound.unlock();
+  if (!narrator.unlocked && app.voice) narrator.unlock();
+}
+window.addEventListener('pointerdown', () => sound.unlock(), { passive: true });
 
 // ---------------------------------------------------------------- i18n helpers
 function applyLang() {
@@ -89,6 +104,7 @@ async function startChapter(idx) {
     app.vars.flags = new Set();
     if (idx === 0) { app.vars.care = 0; }
     world.show(SCENES[ch.scene]);
+    sound.setMood(NIGHT_SCENES.has(ch.scene) ? 'night' : 'day');
     world.setFocusOffset(0, window.innerWidth < 640 ? 0.12 : 0.08);
     $('hud').classList.remove('hidden');
     updateHud();
@@ -126,6 +142,7 @@ function showLine(tok) {
   const line = node.say?.[app.lineIdx];
   $('choices').innerHTML = '';
   $('hint').classList.add('hidden');
+  $('btn-tap').classList.add('hidden');
   if (!line) return;
   renderSay(line, tok, () => {
     if (tok !== app.token) return;
@@ -208,6 +225,7 @@ function endOfLines(tok) {
     $('hint-text').textContent = pick(node.hint);
     $('hint').classList.remove('hidden');
   }
+  $('btn-tap').classList.toggle('hidden', !(node.hint && !world.renderer));
   if (node.choices) {
     const box = $('choices');
     box.innerHTML = '';
@@ -216,7 +234,7 @@ function endOfLines(tok) {
       b.className = 'choice';
       b.dataset.ev = c.ev;
       b.innerHTML = app.lang === 'en' ? c.en : app.lang === 'zh' ? c.zh : `${c.zh}<small>${c.en}</small>`;
-      b.addEventListener('click', () => handleEvent(c));
+      b.addEventListener('click', () => { sound.sfx('choice'); handleEvent(c); });
       box.appendChild(b);
     });
   }
@@ -258,6 +276,7 @@ function handleEvent(e) {
       app.goodKeys.add(key);
       app.vars.good++;
       persist();
+      sound.sfx('good');
       const sc = $('seal-count');
       sc.classList.remove('bump'); void sc.offsetWidth; sc.classList.add('bump');
       updateHud();
@@ -298,6 +317,7 @@ function persist() {
 // ---------------------------------------------------------------- lesson card
 function showLesson(tok) {
   const ch = CHAPTERS[app.chapterIdx];
+  sound.sfx('page');
   $('dialog').classList.add('hidden');
   $('lesson').classList.remove('hidden');
   $('lesson-book').textContent = `《${BOOKS[ch.book].zh}》 ${BOOKS[ch.book].en}`;
@@ -408,8 +428,11 @@ function hitPickable(e) {
 $('stage').addEventListener('pointerdown', (e) => {
   const o = hitPickable(e);
   if (!o) return;
+  sound.sfx('tap');
   processSceneEvents(world.active.pick(o.userData.pick, o) || []);
 });
+// Without 3D there is nothing to tap, so offer a button that performs the scene action.
+$('btn-tap').addEventListener('click', () => { sound.sfx('tap'); processSceneEvents(world.active.autoTap?.() || []); });
 $('stage').addEventListener('pointermove', (e) => {
   $('stage').style.cursor = hitPickable(e) ? 'pointer' : '';
 });
@@ -428,11 +451,19 @@ $('btn-lang').addEventListener('click', () => {
 });
 $('btn-voice').addEventListener('click', () => {
   app.voice = !app.voice;
+  if (app.voice) narrator.unlock(app.lang === 'en' ? 'Narration on' : '朗读已打开');
   store.set('voice', app.voice);
   $('btn-voice').setAttribute('aria-pressed', String(app.voice));
   if (!app.voice) narrator.stop();
 });
 $('btn-auto').addEventListener('click', () => setAuto(!app.auto));
+$('btn-music').addEventListener('click', () => {
+  app.music = !app.music;
+  store.set('music', app.music);
+  $('btn-music').setAttribute('aria-pressed', String(app.music));
+  sound.unlock();
+  sound.setMusic(app.music);
+});
 function setAuto(on) {
   app.auto = on;
   $('btn-auto').setAttribute('aria-pressed', String(on));
@@ -449,9 +480,9 @@ $('btn-full').addEventListener('click', () => {
 });
 $('btn-next').addEventListener('click', (e) => { e.stopPropagation(); advance(); });
 $('dialog').addEventListener('click', (e) => { if (!e.target.closest('button')) advance(); });
-$('btn-start').addEventListener('click', () => { narrator.unlock(); setAuto(false); startChapter(0); });
-$('btn-broadcast').addEventListener('click', () => { narrator.unlock(); setAuto(true); startChapter(0); });
-$('btn-chapters-cover').addEventListener('click', () => { narrator.unlock(); renderChapters(); });
+$('btn-start').addEventListener('click', () => { unlockAudio(); setAuto(false); startChapter(0); });
+$('btn-broadcast').addEventListener('click', () => { unlockAudio(); setAuto(true); startChapter(0); });
+$('btn-chapters-cover').addEventListener('click', () => { unlockAudio(); renderChapters(); });
 $('btn-chapters').addEventListener('click', renderChapters);
 $('btn-chapters-end').addEventListener('click', renderChapters);
 $('btn-close-chapters').addEventListener('click', () => $('chapters').classList.add('hidden'));
@@ -475,7 +506,14 @@ window.addEventListener('keydown', (e) => {
 
 // ---------------------------------------------------------------- boot
 $('btn-voice').setAttribute('aria-pressed', String(app.voice));
-applyLang();
+$('btn-music').setAttribute('aria-pressed', String(app.music));
+if (!world.renderer) {
+  document.body.classList.add('no-3d');
+  $('no3d').classList.remove('hidden');
+}
+if (IS_IOS) $('ios-tip').classList.remove('hidden');
+// iPhone Safari/Brave have no Fullscreen API; don't show a button that does nothing.
+if (!document.documentElement.requestFullscreen) $('btn-full').classList.add('hidden');
 Promise.all([
   loadAssets(),
   Promise.race([
@@ -492,6 +530,8 @@ Promise.all([
 // Debug/test hooks.
 window.__app = app;
 window.__world = world;
+window.__sound = sound;
+window.__narrator = narrator;
 window.__test = {
   tap: () => processSceneEvents(world.active.autoTap?.() || []),
   // Advance the 3D simulation without rAF (for hidden/background tabs).

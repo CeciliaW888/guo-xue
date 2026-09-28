@@ -25,12 +25,21 @@ const SKY_FRAG = /* glsl */ `
 
 export class World {
   constructor(canvas) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.05;
+    // Some browsers (e.g. Brave with strict Shields) block WebGL. The story still runs
+    // without a renderer: scenes are simulated, just not drawn.
+    try {
+      // ?no3d simulates a browser that blocks WebGL, for testing the fallback.
+      if (new URLSearchParams(location.search).has('no3d')) throw new Error('WebGL disabled by ?no3d');
+      this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      this.renderer.shadowMap.enabled = true;
+      this.renderer.shadowMap.type = THREE.PCFShadowMap;
+      this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      this.renderer.toneMappingExposure = 1.05;
+    } catch (err) {
+      console.warn('WebGL unavailable; continuing without 3D', err);
+      this.renderer = null;
+    }
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(40, 1, 0.1, 400);
@@ -69,7 +78,7 @@ export class World {
     this.lookCur = this.camLook.clone();
     this.pointer = new THREE.Vector2();
     this.offsetX = 0; // fraction of width the focus should shift (panel on the right)
-    this.clock = new THREE.Clock();
+    this.timer = new THREE.Timer();
     this.beat = 0;
     this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -82,7 +91,7 @@ export class World {
 
   resize() {
     const w = window.innerWidth, h = window.innerHeight;
-    this.renderer.setSize(w, h, false);
+    this.renderer?.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.fov = w / h < 0.8 ? 50 : 40;
     this.applyOffset();
@@ -128,7 +137,7 @@ export class World {
     this.sun.color.set(light.sun ?? 0xfff0d6);
     this.sun.intensity = light.sunIntensity ?? 2.2;
     this.sun.position.fromArray(light.sunPos ?? [8, 14, 10]);
-    this.renderer.toneMappingExposure = light.exposure ?? 1.05;
+    if (this.renderer) this.renderer.toneMappingExposure = light.exposure ?? 1.05;
     this.camPos.fromArray(s.cam.pos);
     this.camLook.fromArray(s.cam.look);
     // Start slightly behind the first shot so each chapter opens with a gentle dolly-in.
@@ -143,7 +152,8 @@ export class World {
   start() {
     const loop = () => {
       requestAnimationFrame(loop);
-      this.step(Math.min(this.clock.getDelta(), 0.05));
+      this.timer.update();
+      this.step(Math.min(this.timer.getDelta(), 0.05));
     };
     loop();
   }
@@ -175,7 +185,7 @@ export class World {
       this.lookCur.lerp(this.camLook, k);
       this.camera.lookAt(this.lookCur);
       this.sun.target.position.copy(this.lookCur);
-      this.renderer.render(this.scene, this.camera);
+      this.renderer?.render(this.scene, this.camera);
     }
   }
 }

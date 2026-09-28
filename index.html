@@ -12,6 +12,7 @@
 </head>
 <body>
   <canvas id="stage" aria-label="3D story scene"></canvas>
+  <noscript><div class="no3d" style="display:block">请允许本网站运行 JavaScript（Brave：点狮子图标，关闭 Shields）。Please allow JavaScript for this site (in Brave, tap the lion icon and turn Shields off).</div></noscript>
 
   <!-- Title screen -->
   <section id="cover" class="cover">
@@ -29,6 +30,7 @@
         <button data-lang="both">中 + EN</button>
         <button data-lang="en">English</button>
       </div>
+      <p class="ios-tip hidden" id="ios-tip"><span class="zh">听不到声音？请打开 iPhone 侧面的响铃开关。</span><span class="en">No sound? Turn off silent mode (the switch on the side of your iPhone).</span></p>
     </div>
   </section>
 
@@ -43,6 +45,9 @@
       <button class="icon" id="btn-lang" aria-label="Language"><span id="lang-label">中</span></button>
       <button class="icon" id="btn-voice" aria-label="Narration" aria-pressed="true">
         <svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path class="wave" d="M16 8.5a4.5 4.5 0 0 1 0 7M18.5 6a8 8 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+      <button class="icon" id="btn-music" aria-label="Music" aria-pressed="true">
+        <svg viewBox="0 0 24 24"><path d="M9 17.5V6l10-2v11.5"/><circle cx="6.5" cy="17.5" r="2.5"/><circle cx="16.5" cy="15.5" r="2.5"/><path class="slash" d="M4 4l16 16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       </button>
       <button class="icon" id="btn-auto" aria-label="Storyteller mode" aria-pressed="false">
         <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
@@ -62,6 +67,7 @@
       <svg viewBox="0 0 24 24"><path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V10l4.6.9a2 2 0 0 1 1.6 2.3l-.8 4.3a3 3 0 0 1-3 2.5H11a3 3 0 0 1-2.4-1.2L5.3 14.4a1.3 1.3 0 0 1 2-1.7L9 14.5z"/></svg>
       <span id="hint-text"></span>
     </div>
+    <button class="btn small tap-btn hidden" id="btn-tap" data-zh="帮我点一下" data-en="Do it for me"></button>
     <div class="choices" id="choices"></div>
     <button class="next" id="btn-next" aria-label="Continue"><span data-zh="继续" data-en="Next"></span> ›</button>
   </section>
@@ -114,6 +120,11 @@
       <div id="chapter-list"></div>
     </div>
   </section>
+
+  <div id="no3d" class="no3d hidden" role="status">
+    <span class="zh">这个浏览器拦截了 3D 画面，故事照样可以玩。Brave 用户：点地址栏的狮子图标，为本站关闭 Shields 即可看到 3D。</span>
+    <span class="en">This browser blocked the 3D view, but the story still works. In Brave, tap the lion icon and turn Shields off for this site to see 3D.</span>
+  </div>
 
   <div id="fade" class="fade"></div>
   <script type="module" src="/src/main.js"></script>
