@@ -10,5 +10,6 @@ rm -rf .git
 git init -q -b gh-pages
 git add -A
 git commit -q -m "Deploy $(git -C .. rev-parse --short HEAD)"
-git push -f "$remote_url" gh-pages
+# Authenticate with the GitHub CLI login so this works without SSH keys.
+git -c credential.helper= -c credential.helper="!gh auth git-credential" push -f "$remote_url" gh-pages
 rm -rf .git
