@@ -53,3 +53,11 @@ Later embellishments are labelled as such; for example, the popular "little brot
 Set `PREVIEW=/path/to/preview.png` to also render a still.
 The model's materials are named (`Wall`, `Roof`, `Pillar`, …), so each scene recolours it.
 If the model fails to load, `house()` falls back to procedural geometry.
+
+## Deploy
+
+```bash
+npm run deploy
+```
+
+Builds the site and force-pushes `dist/` to the `gh-pages` branch, which GitHub Pages serves.
